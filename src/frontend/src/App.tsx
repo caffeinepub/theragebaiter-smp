@@ -12,11 +12,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import type React from "react";
 import { useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FormData = Record<string, string>;
+type Page = "landing" | "apply";
 
 // ─── Form Questions Definition ────────────────────────────────────────────────
 
@@ -406,15 +408,39 @@ function QuestionField({
   onChange,
 }: { question: Question; value: string; onChange: (v: string) => void }) {
   const labelEl = (
-    <Label className="text-sm font-semibold text-foreground/90 mb-1.5 block leading-snug">
-      <span className="text-primary font-bold">Q{question.number}.</span>{" "}
-      {question.label}
-    </Label>
+    <div className="flex items-start gap-3 mb-4">
+      {/* Yellow Q-number badge */}
+      <span
+        className="shrink-0 inline-flex items-center justify-center rounded-md text-xs font-black px-2 py-1 leading-none mt-0.5"
+        style={{
+          background: "oklch(0.87 0.19 95 / 0.18)",
+          color: "oklch(0.87 0.19 95)",
+          border: "1px solid oklch(0.87 0.19 95 / 0.45)",
+          minWidth: "2.25rem",
+        }}
+      >
+        Q{question.number}
+      </span>
+      <Label
+        className="text-base font-semibold leading-snug"
+        style={{ color: "oklch(0.97 0.01 290)" }}
+      >
+        {question.label}
+      </Label>
+    </div>
   );
+
+  const cardStyle: React.CSSProperties = {
+    background: "oklch(0.20 0.08 290)",
+    border: "1px solid oklch(0.87 0.19 95 / 0.18)",
+    borderLeft: "3px solid oklch(0.87 0.19 95 / 0.7)",
+    borderRadius: "0.625rem",
+    padding: "1.125rem 1.25rem",
+  };
 
   if (question.type === "textarea") {
     return (
-      <div className="space-y-1.5">
+      <div style={cardStyle}>
         {labelEl}
         <Textarea
           data-ocid="form.textarea"
@@ -422,7 +448,12 @@ function QuestionField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={question.placeholder}
           rows={3}
-          className="bg-input border-border focus:border-primary focus:ring-2 focus:ring-primary/30 resize-none text-sm placeholder:text-muted-foreground/60 transition-all duration-200"
+          className="resize-none text-sm transition-all duration-200"
+          style={{
+            background: "oklch(0.14 0.06 290)",
+            border: "1px solid oklch(0.87 0.19 95 / 0.22)",
+            color: "oklch(0.97 0.01 290)",
+          }}
         />
       </div>
     );
@@ -430,12 +461,17 @@ function QuestionField({
 
   if (question.type === "select") {
     return (
-      <div className="space-y-1.5">
+      <div style={cardStyle}>
         {labelEl}
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger
             data-ocid="form.select"
-            className="bg-input border-border focus:border-primary focus:ring-2 focus:ring-primary/30 text-sm transition-all duration-200"
+            className="text-sm transition-all duration-200"
+            style={{
+              background: "oklch(0.14 0.06 290)",
+              border: "1px solid oklch(0.87 0.19 95 / 0.22)",
+              color: "oklch(0.97 0.01 290)",
+            }}
           >
             <SelectValue placeholder="Select an option..." />
           </SelectTrigger>
@@ -456,25 +492,29 @@ function QuestionField({
   }
 
   return (
-    <div className="space-y-1.5">
+    <div style={cardStyle}>
       {labelEl}
       <Input
         data-ocid="form.input"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={question.placeholder}
-        className="bg-input border-border focus:border-primary focus:ring-2 focus:ring-primary/30 text-sm placeholder:text-muted-foreground/60 transition-all duration-200"
+        className="text-sm transition-all duration-200"
+        style={{
+          background: "oklch(0.14 0.06 290)",
+          border: "1px solid oklch(0.87 0.19 95 / 0.22)",
+          color: "oklch(0.97 0.01 290)",
+        }}
       />
     </div>
   );
 }
 
-// ─── Main App ──────────────────────────────────────────────────────────────────
+// ─── Apply Page ────────────────────────────────────────────────────────────────
 
-export default function App() {
+function ApplyPage({ onBack }: { onBack: () => void }) {
   const [formData, setFormData] = useState<FormData>({});
   const [submitted, setSubmitted] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const updateField = (id: string, value: string) => {
     setFormData((prev) => ({ ...prev, [id]: value }));
@@ -485,6 +525,320 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleBack = () => {
+    onBack();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      {/* ─── Apply Navbar ──────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleBack}
+            data-ocid="apply.link"
+            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors duration-200"
+          >
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M15 9H3M9 3L3 9l6 6" />
+            </svg>
+            Back to Home
+          </button>
+
+          <span className="text-lg font-black text-primary tracking-tight text-glow-yellow">
+            TheRagebaiter SMP
+          </span>
+
+          <div className="w-28" />
+        </div>
+      </nav>
+
+      {/* ─── Application Form ─────────────────────────────────────────────── */}
+      <main
+        className="py-14 sm:py-20 px-4 sm:px-6 relative"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 0%, oklch(0.20 0.09 285 / 0.5) 0%, transparent 70%)",
+        }}
+      >
+        {/* Left edge accent */}
+        <div
+          className="absolute left-0 top-16 bottom-16 w-1 hidden lg:block"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent, oklch(0.87 0.19 95 / 0.4), transparent)",
+          }}
+        />
+        <div className="max-w-3xl mx-auto">
+          {/* Page header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-bold tracking-widest uppercase mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              40 Questions — Survival Edition
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4">
+              Submit Your{" "}
+              <span className="text-primary text-glow-yellow">Application</span>
+            </h1>
+            <p className="text-muted-foreground text-base max-w-md mx-auto">
+              40 questions. No shortcuts. Prove your worth — or go back to
+              creative mode.
+            </p>
+          </div>
+
+          {submitted ? (
+            <Card
+              data-ocid="form.success_state"
+              className="border-primary/50 bg-card text-center p-8 sm:p-12 glow-yellow"
+            >
+              <div className="text-5xl sm:text-6xl mb-6">🎮</div>
+              <h3 className="text-2xl sm:text-3xl font-black text-primary mb-4 text-glow-yellow">
+                Application Submitted!
+              </h3>
+              <p className="text-muted-foreground text-base max-w-md mx-auto leading-relaxed mb-6">
+                We'll review it and reach out via Discord. In the meantime,
+                don't reveal your application to other applicants — that's
+                already ragebait territory.
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 text-primary text-sm font-semibold mb-8">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                Applications reviewed within 48–72 hours
+              </div>
+              <div className="pt-4">
+                <Button
+                  onClick={handleBack}
+                  data-ocid="form.secondary_button"
+                  variant="outline"
+                  className="border-border text-muted-foreground hover:text-primary hover:border-primary/50"
+                >
+                  ← Back to Home
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{
+                boxShadow:
+                  "0 0 0 1px oklch(0.87 0.19 95 / 0.25), 0 0 40px oklch(0.87 0.19 95 / 0.08), 0 8px 32px oklch(0.13 0.06 290 / 0.6)",
+                background: "oklch(0.17 0.07 290)",
+              }}
+            >
+              <div className="p-5 sm:p-8 space-y-10">
+                {/* ── Section 1: Personal Info ── */}
+                <div data-ocid="form.section.1">
+                  <div className="flex items-center gap-3 mb-6">
+                    <span
+                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
+                      style={{
+                        background: "oklch(0.87 0.19 95 / 0.15)",
+                        color: "oklch(0.87 0.19 95)",
+                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
+                      }}
+                    >
+                      01
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-black text-foreground tracking-tight">
+                        Personal Info
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Questions 1–10
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {personalInfoQuestions.map((q) => (
+                      <QuestionField
+                        key={q.id}
+                        question={q}
+                        value={formData[q.id] ?? ""}
+                        onChange={(v) => updateField(q.id, v)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <Separator
+                  className="opacity-30"
+                  style={{ borderColor: "oklch(0.87 0.19 95 / 0.3)" }}
+                />
+
+                {/* ── Section 2: Gameplay Style ── */}
+                <div data-ocid="form.section.2">
+                  <div className="flex items-center gap-3 mb-6">
+                    <span
+                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
+                      style={{
+                        background: "oklch(0.87 0.19 95 / 0.15)",
+                        color: "oklch(0.87 0.19 95)",
+                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
+                      }}
+                    >
+                      02
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-black text-foreground tracking-tight">
+                        Gameplay Style
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Questions 11–20
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {gameplayQuestions.map((q) => (
+                      <QuestionField
+                        key={q.id}
+                        question={q}
+                        value={formData[q.id] ?? ""}
+                        onChange={(v) => updateField(q.id, v)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <Separator
+                  className="opacity-30"
+                  style={{ borderColor: "oklch(0.87 0.19 95 / 0.3)" }}
+                />
+
+                {/* ── Section 3: Community & Rules ── */}
+                <div data-ocid="form.section.3">
+                  <div className="flex items-center gap-3 mb-6">
+                    <span
+                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
+                      style={{
+                        background: "oklch(0.87 0.19 95 / 0.15)",
+                        color: "oklch(0.87 0.19 95)",
+                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
+                      }}
+                    >
+                      03
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-black text-foreground tracking-tight">
+                        Community &amp; Rules
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Questions 21–30
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {communityQuestions.map((q) => (
+                      <QuestionField
+                        key={q.id}
+                        question={q}
+                        value={formData[q.id] ?? ""}
+                        onChange={(v) => updateField(q.id, v)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <Separator
+                  className="opacity-30"
+                  style={{ borderColor: "oklch(0.87 0.19 95 / 0.3)" }}
+                />
+
+                {/* ── Section 4: Ragebait & Chaos Scenarios ── */}
+                <div data-ocid="form.section.4">
+                  <div className="flex items-center gap-3 mb-6">
+                    <span
+                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
+                      style={{
+                        background: "oklch(0.87 0.19 95 / 0.15)",
+                        color: "oklch(0.87 0.19 95)",
+                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
+                      }}
+                    >
+                      04
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-black text-foreground tracking-tight">
+                        Ragebait &amp; Chaos Scenarios
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        Questions 31–40
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {rageBaitQuestions.map((q) => (
+                      <QuestionField
+                        key={q.id}
+                        question={q}
+                        value={formData[q.id] ?? ""}
+                        onChange={(v) => updateField(q.id, v)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Submit ── */}
+                <div className="pt-4 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <Button
+                    onClick={handleBack}
+                    data-ocid="form.secondary_button"
+                    variant="outline"
+                    className="border-border text-muted-foreground hover:text-primary hover:border-primary/50 order-2 sm:order-1"
+                  >
+                    ← Back to Home
+                  </Button>
+                  <Button
+                    data-ocid="form.submit_button"
+                    onClick={handleSubmit}
+                    className="bg-primary text-primary-foreground font-black px-10 py-6 text-base glow-yellow hover:bg-accent hover:scale-105 transition-all duration-300 order-1 sm:order-2"
+                  >
+                    🎮 Submit Application
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ─── Footer ──────────────────────────────────────────────────────────── */}
+      <footer className="border-t border-border/50 bg-card/30 mt-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-muted-foreground/50">
+            © {new Date().getFullYear()} TheRagebaiter SMP. All rights reserved.
+          </p>
+          <p className="text-xs text-muted-foreground/50">
+            Built with love using{" "}
+            <a
+              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary/60 hover:text-primary transition-colors"
+            >
+              caffeine.ai
+            </a>
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ─── Landing Page ──────────────────────────────────────────────────────────────
+
+function LandingPage({ onApply }: { onApply: () => void }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const scrollTo = (id: string) => {
     setMobileMenuOpen(false);
     const el = document.getElementById(id);
@@ -493,7 +847,6 @@ export default function App() {
 
   const navLinks = [
     { label: "About", target: "about" },
-    { label: "Apply", target: "apply" },
     { label: "Rules", target: "rules" },
   ];
 
@@ -519,6 +872,11 @@ export default function App() {
       desc: "The server runs on chaos. Alliances form and collapse overnight. Drama is content. Chaos is the point.",
     },
   ];
+
+  const handleApply = () => {
+    onApply();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -547,7 +905,8 @@ export default function App() {
               </button>
             ))}
             <Button
-              onClick={() => scrollTo("apply")}
+              data-ocid="nav.primary_button"
+              onClick={handleApply}
               className="ml-2 bg-primary text-primary-foreground font-bold text-sm hover:bg-accent glow-yellow-sm transition-all duration-200"
             >
               Apply Now
@@ -601,7 +960,8 @@ export default function App() {
               </button>
             ))}
             <Button
-              onClick={() => scrollTo("apply")}
+              data-ocid="nav.primary_button"
+              onClick={handleApply}
               className="w-full mt-2 bg-primary text-primary-foreground font-bold text-sm hover:bg-accent"
             >
               Apply Now
@@ -660,7 +1020,7 @@ export default function App() {
 
           <Button
             data-ocid="hero.primary_button"
-            onClick={() => scrollTo("apply")}
+            onClick={handleApply}
             size="lg"
             className="bg-primary text-primary-foreground font-black text-base sm:text-lg px-8 sm:px-12 py-6 sm:py-7 rounded-lg glow-yellow hover:bg-accent hover:scale-105 transition-all duration-300 tracking-wide"
           >
@@ -745,6 +1105,20 @@ export default function App() {
               </Card>
             ))}
           </div>
+
+          {/* Apply CTA within About section */}
+          <div className="mt-14 text-center">
+            <p className="text-muted-foreground text-sm mb-5">
+              Ready to prove you belong here?
+            </p>
+            <Button
+              data-ocid="about.primary_button"
+              onClick={handleApply}
+              className="bg-primary text-primary-foreground font-black px-10 py-5 text-sm glow-yellow hover:bg-accent hover:scale-105 transition-all duration-300"
+            >
+              Apply for a Whitelist Spot →
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -756,233 +1130,6 @@ export default function App() {
             "linear-gradient(to right, transparent, oklch(0.87 0.19 95 / 0.3), transparent)",
         }}
       />
-
-      {/* ─── Application Form ────────────────────────────────────────────────── */}
-      <section
-        id="apply"
-        className="py-20 sm:py-28 px-4 sm:px-6 relative"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 0%, oklch(0.20 0.09 285 / 0.5) 0%, transparent 70%)",
-        }}
-      >
-        {/* Left edge accent */}
-        <div
-          className="absolute left-0 top-16 bottom-16 w-1 hidden lg:block"
-          style={{
-            background:
-              "linear-gradient(to bottom, transparent, oklch(0.87 0.19 95 / 0.4), transparent)",
-          }}
-        />
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-xs font-bold tracking-widest uppercase text-primary/80 mb-3 block">
-              The Application
-            </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4">
-              Submit Your{" "}
-              <span className="text-primary text-glow-yellow">Application</span>
-            </h2>
-            <p className="text-muted-foreground text-base">
-              40 questions. No shortcuts. Prove your worth.
-            </p>
-          </div>
-
-          {submitted ? (
-            <Card
-              data-ocid="form.success_state"
-              className="border-primary/50 bg-card text-center p-8 sm:p-12 glow-yellow"
-            >
-              <div className="text-5xl sm:text-6xl mb-6">🎮</div>
-              <h3 className="text-2xl sm:text-3xl font-black text-primary mb-4 text-glow-yellow">
-                Application Submitted!
-              </h3>
-              <p className="text-muted-foreground text-base max-w-md mx-auto leading-relaxed mb-6">
-                We'll review it and reach out via Discord. In the meantime,
-                don't reveal your application to other applicants — that's
-                already ragebait territory.
-              </p>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 text-primary text-sm font-semibold">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                Applications reviewed within 48–72 hours
-              </div>
-            </Card>
-          ) : (
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{
-                boxShadow:
-                  "0 0 0 1px oklch(0.87 0.19 95 / 0.25), 0 0 40px oklch(0.87 0.19 95 / 0.08), 0 8px 32px oklch(0.13 0.06 290 / 0.6)",
-                background: "oklch(0.17 0.07 290)",
-              }}
-            >
-              <div className="p-5 sm:p-8 space-y-10">
-                {/* ── Section 1: Personal Info ── */}
-                <div data-ocid="form.section.1">
-                  <div className="flex items-center gap-3 mb-6">
-                    <span
-                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
-                      style={{
-                        background: "oklch(0.87 0.19 95 / 0.15)",
-                        color: "oklch(0.87 0.19 95)",
-                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
-                      }}
-                    >
-                      01
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-black text-foreground tracking-tight">
-                        Personal Info
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Questions 1–10
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-6">
-                    {personalInfoQuestions.map((q) => (
-                      <QuestionField
-                        key={q.id}
-                        question={q}
-                        value={formData[q.id] ?? ""}
-                        onChange={(v) => updateField(q.id, v)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <Separator
-                  className="opacity-30"
-                  style={{ borderColor: "oklch(0.87 0.19 95 / 0.3)" }}
-                />
-
-                {/* ── Section 2: Gameplay Style ── */}
-                <div data-ocid="form.section.2">
-                  <div className="flex items-center gap-3 mb-6">
-                    <span
-                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
-                      style={{
-                        background: "oklch(0.87 0.19 95 / 0.15)",
-                        color: "oklch(0.87 0.19 95)",
-                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
-                      }}
-                    >
-                      02
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-black text-foreground tracking-tight">
-                        Gameplay Style
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Questions 11–20
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-6">
-                    {gameplayQuestions.map((q) => (
-                      <QuestionField
-                        key={q.id}
-                        question={q}
-                        value={formData[q.id] ?? ""}
-                        onChange={(v) => updateField(q.id, v)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <Separator
-                  className="opacity-30"
-                  style={{ borderColor: "oklch(0.87 0.19 95 / 0.3)" }}
-                />
-
-                {/* ── Section 3: Community & Rules ── */}
-                <div data-ocid="form.section.3">
-                  <div className="flex items-center gap-3 mb-6">
-                    <span
-                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
-                      style={{
-                        background: "oklch(0.87 0.19 95 / 0.15)",
-                        color: "oklch(0.87 0.19 95)",
-                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
-                      }}
-                    >
-                      03
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-black text-foreground tracking-tight">
-                        Community &amp; Rules
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Questions 21–30
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-6">
-                    {communityQuestions.map((q) => (
-                      <QuestionField
-                        key={q.id}
-                        question={q}
-                        value={formData[q.id] ?? ""}
-                        onChange={(v) => updateField(q.id, v)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <Separator
-                  className="opacity-30"
-                  style={{ borderColor: "oklch(0.87 0.19 95 / 0.3)" }}
-                />
-
-                {/* ── Section 4: Ragebait & Chaos Scenarios ── */}
-                <div data-ocid="form.section.4">
-                  <div className="flex items-center gap-3 mb-6">
-                    <span
-                      className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-black shrink-0"
-                      style={{
-                        background: "oklch(0.87 0.19 95 / 0.15)",
-                        color: "oklch(0.87 0.19 95)",
-                        border: "1px solid oklch(0.87 0.19 95 / 0.35)",
-                      }}
-                    >
-                      04
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-black text-foreground tracking-tight">
-                        Ragebait &amp; Chaos Scenarios
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Questions 31–40
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-6">
-                    {rageBaitQuestions.map((q) => (
-                      <QuestionField
-                        key={q.id}
-                        question={q}
-                        value={formData[q.id] ?? ""}
-                        onChange={(v) => updateField(q.id, v)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* ── Submit ── */}
-                <div className="pt-4 border-t border-border/50 flex justify-center">
-                  <Button
-                    data-ocid="form.submit_button"
-                    onClick={handleSubmit}
-                    className="bg-primary text-primary-foreground font-black px-10 py-6 text-base glow-yellow hover:bg-accent hover:scale-105 transition-all duration-300"
-                  >
-                    🎮 Submit Application
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* ─── Chapter Break Divider ───────────────────────────────────────────── */}
       <div className="relative py-12 px-4 sm:px-6">
@@ -1178,4 +1325,16 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+// ─── Main App ──────────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [page, setPage] = useState<Page>("landing");
+
+  if (page === "apply") {
+    return <ApplyPage onBack={() => setPage("landing")} />;
+  }
+
+  return <LandingPage onApply={() => setPage("apply")} />;
 }
