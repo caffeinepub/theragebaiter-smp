@@ -89,10 +89,97 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Answer {
+    questionId: string;
+    answerText: string;
+}
+export interface ApplicationRecord {
+    id: bigint;
+    status: string;
+    applicantName: string;
+    answers: Array<Answer>;
+    timestamp: bigint;
+    discordUsername: string;
+}
 export interface backendInterface {
+    canisterVersion(): Promise<string>;
+    getApplication(id: bigint): Promise<ApplicationRecord>;
+    listApplications(): Promise<Array<ApplicationRecord>>;
+    submitApplication(applicantName: string, discordUsername: string, rawAnswers: Array<[string, string]>): Promise<bigint>;
+    updateStatus(id: bigint, status: string): Promise<void>;
 }
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async canisterVersion(): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.canisterVersion();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.canisterVersion();
+            return result;
+        }
+    }
+    async getApplication(arg0: bigint): Promise<ApplicationRecord> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getApplication(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getApplication(arg0);
+            return result;
+        }
+    }
+    async listApplications(): Promise<Array<ApplicationRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listApplications();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listApplications();
+            return result;
+        }
+    }
+    async submitApplication(arg0: string, arg1: string, arg2: Array<[string, string]>): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.submitApplication(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.submitApplication(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async updateStatus(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateStatus(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateStatus(arg0, arg1);
+            return result;
+        }
+    }
 }
 export interface CreateActorOptions {
     agent?: Agent;

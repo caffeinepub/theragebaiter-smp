@@ -8,10 +8,58 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const idlService = IDL.Service({});
+export const Answer = IDL.Record({
+  'questionId' : IDL.Text,
+  'answerText' : IDL.Text,
+});
+export const ApplicationRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'status' : IDL.Text,
+  'applicantName' : IDL.Text,
+  'answers' : IDL.Vec(Answer),
+  'timestamp' : IDL.Int,
+  'discordUsername' : IDL.Text,
+});
+
+export const idlService = IDL.Service({
+  'canisterVersion' : IDL.Func([], [IDL.Text], ['query']),
+  'getApplication' : IDL.Func([IDL.Nat], [ApplicationRecord], ['query']),
+  'listApplications' : IDL.Func([], [IDL.Vec(ApplicationRecord)], ['query']),
+  'submitApplication' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
+      [IDL.Nat],
+      [],
+    ),
+  'updateStatus' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+});
 
 export const idlInitArgs = [];
 
-export const idlFactory = ({ IDL }) => { return IDL.Service({}); };
+export const idlFactory = ({ IDL }) => {
+  const Answer = IDL.Record({
+    'questionId' : IDL.Text,
+    'answerText' : IDL.Text,
+  });
+  const ApplicationRecord = IDL.Record({
+    'id' : IDL.Nat,
+    'status' : IDL.Text,
+    'applicantName' : IDL.Text,
+    'answers' : IDL.Vec(Answer),
+    'timestamp' : IDL.Int,
+    'discordUsername' : IDL.Text,
+  });
+  
+  return IDL.Service({
+    'canisterVersion' : IDL.Func([], [IDL.Text], ['query']),
+    'getApplication' : IDL.Func([IDL.Nat], [ApplicationRecord], ['query']),
+    'listApplications' : IDL.Func([], [IDL.Vec(ApplicationRecord)], ['query']),
+    'submitApplication' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Vec(IDL.Tuple(IDL.Text, IDL.Text))],
+        [IDL.Nat],
+        [],
+      ),
+    'updateStatus' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  });
+};
 
 export const init = ({ IDL }) => { return []; };

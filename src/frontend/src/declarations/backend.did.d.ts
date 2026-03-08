@@ -10,7 +10,25 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface _SERVICE {}
+export interface Answer { 'questionId' : string, 'answerText' : string }
+export interface ApplicationRecord {
+  'id' : bigint,
+  'status' : string,
+  'applicantName' : string,
+  'answers' : Array<Answer>,
+  'timestamp' : bigint,
+  'discordUsername' : string,
+}
+export interface _SERVICE {
+  'canisterVersion' : ActorMethod<[], string>,
+  'getApplication' : ActorMethod<[bigint], ApplicationRecord>,
+  'listApplications' : ActorMethod<[], Array<ApplicationRecord>>,
+  'submitApplication' : ActorMethod<
+    [string, string, Array<[string, string]>],
+    bigint
+  >,
+  'updateStatus' : ActorMethod<[bigint, string], undefined>,
+}
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
 export declare const idlFactory: IDL.InterfaceFactory;

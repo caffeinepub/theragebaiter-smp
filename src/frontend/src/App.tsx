@@ -12,23 +12,34 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useActor } from "@/hooks/useActor";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FormData = Record<string, string>;
-type Page = "landing" | "apply";
+type Page = "landing" | "apply" | "admin";
 
-// ─── Discord Webhook ───────────────────────────────────────────────────────────
+// ─── Discord Webhooks ─────────────────────────────────────────────────────────
 
 const DISCORD_WEBHOOK_URL =
-  "https://discord.com/api/webhooks/1480303611639758870/6I7NAtgAiz6WKunYXk48KJ1p8g_49UEBbjB0v0kncR3G0zbttkJRdgTylUmZW1v-fXI5";
+  "https://discord.com/api/webhooks/1480317436573253704/6NHhiqcO8aSlWUaPEx9jVpMf1tjWFJiW8z5gjUj0X_uaN1h7XSiXZ8lbMqsCjiPWzeoc";
+
+const ADMIN_WEBHOOK_URL =
+  "https://discord.com/api/webhooks/1480320849276833967/mEdzanw_hy-KNAzYspaiTQev2E5iMJHKxfL34wnOueYv6qxCpAjYZFHl_GcV7knF2C9l";
+
+function truncate(str: string, max: number): string {
+  return str.length > max ? `${str.slice(0, max - 1)}…` : str;
+}
 
 async function sendToDiscord(
   formData: FormData,
   questions: { id: string; number: number; label: string }[],
 ): Promise<void> {
+  const username = formData.q1?.trim() || "Unknown Applicant";
+
   const sections = [
     { title: "📋 Personal Info (Q1–10)", range: [1, 10] },
     { title: "⚔️ Gameplay Style (Q11–20)", range: [11, 20] },
@@ -36,31 +47,69 @@ async function sendToDiscord(
     { title: "🔥 Ragebait & Chaos (Q31–40)", range: [31, 40] },
   ];
 
-  const embeds = sections.map((section) => {
+  const headerRes = await fetch(DISCORD_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: "TheRagebaiter SMP Bot",
+      content: `🎮 **New Application Received!**\n**Applicant:** ${username}\n${"─".repeat(40)}`,
+    }),
+  });
+  if (!headerRes.ok) {
+    const errText = await headerRes.text();
+    throw new Error(`Discord error ${headerRes.status}: ${errText}`);
+  }
+
+  for (const section of sections) {
     const sectionQs = questions.filter(
       (q) => q.number >= section.range[0] && q.number <= section.range[1],
     );
     const fields = sectionQs.map((q) => ({
-      name: `Q${q.number}: ${q.label}`,
-      value: formData[q.id]?.trim() || "_No answer provided_",
+      name: truncate(`Q${q.number}: ${q.label}`, 256),
+      value: truncate(formData[q.id]?.trim() || "_No answer provided_", 1024),
       inline: false,
     }));
-    return {
-      title: section.title,
-      color: 0xf5c518,
-      fields,
-    };
-  });
 
-  const username = formData.q1?.trim() || "Unknown Applicant";
+    const res = await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "TheRagebaiter SMP Bot",
+        embeds: [
+          {
+            title: section.title,
+            color: 0xf5c518,
+            fields,
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Discord error ${res.status}: ${errText}`);
+    }
 
-  await fetch(DISCORD_WEBHOOK_URL, {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+async function sendAdminDecision(
+  decision: "accepted" | "declined",
+  applicantName: string,
+  discordUsername: string,
+  applicationId: bigint,
+): Promise<void> {
+  const emoji = decision === "accepted" ? "✅" : "❌";
+  const label =
+    decision === "accepted" ? "APPLICATION ACCEPTED" : "APPLICATION DECLINED";
+  const content = `${emoji} **${label}**\nApplicant: ${applicantName}\nDiscord: ${discordUsername}\nApplication ID: ${applicationId.toString()}`;
+
+  await fetch(ADMIN_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      username: "TheRagebaiter SMP",
-      content: `**New Application from ${username}** 🎮`,
-      embeds: embeds.slice(0, 4),
+      username: "TheRagebaiter SMP Admin",
+      content,
     }),
   });
 }
@@ -402,6 +451,15 @@ const rageBaitQuestions: Question[] = [
   },
 ];
 
+// ─── All questions flat list (for mapping) ────────────────────────────────────
+
+const ALL_QUESTIONS: Question[] = [
+  ...personalInfoQuestions,
+  ...gameplayQuestions,
+  ...communityQuestions,
+  ...rageBaitQuestions,
+];
+
 // ─── Rules Data ────────────────────────────────────────────────────────────────
 
 const rulesData = {
@@ -445,6 +503,22 @@ const rulesData = {
   ],
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTimestamp(timestamp: bigint): string {
+  // ICP timestamps are in nanoseconds
+  const ms = Number(timestamp / BigInt(1_000_000));
+  const date = new Date(ms);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 // ─── Sub-Components ────────────────────────────────────────────────────────────
 
 function QuestionField({
@@ -454,7 +528,6 @@ function QuestionField({
 }: { question: Question; value: string; onChange: (v: string) => void }) {
   const labelEl = (
     <div className="flex items-start gap-3 mb-4">
-      {/* Yellow Q-number badge */}
       <span
         className="shrink-0 inline-flex items-center justify-center rounded-md text-xs font-black px-2 py-1 leading-none mt-0.5"
         style={{
@@ -555,9 +628,526 @@ function QuestionField({
   );
 }
 
+// ─── Admin Page ────────────────────────────────────────────────────────────────
+
+interface ApplicationRecord {
+  id: bigint;
+  status: string;
+  applicantName: string;
+  answers: Array<{ questionId: string; answerText: string }>;
+  timestamp: bigint;
+  discordUsername: string;
+}
+
+const SECTIONS_CONFIG = [
+  { title: "📋 Personal Info", questions: personalInfoQuestions },
+  { title: "⚔️ Gameplay Style", questions: gameplayQuestions },
+  { title: "👥 Community & Rules", questions: communityQuestions },
+  { title: "🔥 Ragebait & Chaos", questions: rageBaitQuestions },
+];
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, React.CSSProperties> = {
+    pending: {
+      color: "oklch(0.87 0.19 95)",
+      border: "1px solid oklch(0.87 0.19 95 / 0.5)",
+      background: "oklch(0.87 0.19 95 / 0.12)",
+    },
+    accepted: {
+      color: "oklch(0.78 0.19 145)",
+      border: "1px solid oklch(0.78 0.19 145 / 0.5)",
+      background: "oklch(0.78 0.19 145 / 0.12)",
+    },
+    declined: {
+      color: "oklch(0.70 0.22 25)",
+      border: "1px solid oklch(0.70 0.22 25 / 0.5)",
+      background: "oklch(0.70 0.22 25 / 0.12)",
+    },
+  };
+
+  const labels: Record<string, string> = {
+    pending: "⏳ Pending",
+    accepted: "✅ Accepted",
+    declined: "❌ Declined",
+  };
+
+  const key = status.toLowerCase();
+  return (
+    <span
+      className="text-xs font-black px-2.5 py-1 rounded-full tracking-wider uppercase"
+      style={styles[key] ?? styles.pending}
+    >
+      {labels[key] ?? status}
+    </span>
+  );
+}
+
+function ApplicationCard({
+  app,
+  index,
+  onDecision,
+}: {
+  app: ApplicationRecord;
+  index: number;
+  onDecision: (id: bigint, decision: "accepted" | "declined") => Promise<void>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [deciding, setDeciding] = useState<"accepted" | "declined" | null>(
+    null,
+  );
+
+  const answersMap: Record<string, string> = Object.fromEntries(
+    app.answers.map((a) => [a.questionId, a.answerText]),
+  );
+
+  const handleDecision = async (decision: "accepted" | "declined") => {
+    setDeciding(decision);
+    try {
+      await onDecision(app.id, decision);
+    } finally {
+      setDeciding(null);
+    }
+  };
+
+  const isPending = app.status.toLowerCase() === "pending";
+
+  return (
+    <div
+      data-ocid={`admin.item.${index}`}
+      style={{
+        background: "oklch(0.17 0.07 290)",
+        border: "1px solid oklch(0.87 0.19 95 / 0.18)",
+        borderRadius: "0.75rem",
+        overflow: "hidden",
+        boxShadow: "0 4px 16px oklch(0.13 0.06 290 / 0.5)",
+      }}
+    >
+      {/* Card Header / Summary Row */}
+      <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* Applicant info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span
+              className="font-black text-base"
+              style={{ color: "oklch(0.97 0.01 290)" }}
+            >
+              {app.applicantName || "Unknown"}
+            </span>
+            <StatusBadge status={app.status} />
+          </div>
+          <div
+            className="flex flex-wrap items-center gap-3 text-xs"
+            style={{ color: "oklch(0.60 0.05 290)" }}
+          >
+            <span>💬 {app.discordUsername || "—"}</span>
+            <span>🕐 {formatTimestamp(app.timestamp)}</span>
+            <span className="font-mono">ID: {app.id.toString()}</span>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {isPending && (
+            <>
+              <Button
+                data-ocid="admin.accept_button"
+                size="sm"
+                disabled={deciding !== null}
+                onClick={() => handleDecision("accepted")}
+                style={{
+                  background:
+                    deciding === "accepted"
+                      ? "oklch(0.55 0.16 145)"
+                      : "oklch(0.65 0.19 145)",
+                  color: "oklch(0.97 0.01 290)",
+                  border: "none",
+                  fontWeight: 900,
+                  fontSize: "0.75rem",
+                }}
+                className="hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deciding === "accepted" ? "Accepting..." : "✅ Accept"}
+              </Button>
+              <Button
+                data-ocid="admin.decline_button"
+                size="sm"
+                disabled={deciding !== null}
+                onClick={() => handleDecision("declined")}
+                style={{
+                  background:
+                    deciding === "declined"
+                      ? "oklch(0.45 0.18 25)"
+                      : "oklch(0.55 0.22 25)",
+                  color: "oklch(0.97 0.01 290)",
+                  border: "none",
+                  fontWeight: 900,
+                  fontSize: "0.75rem",
+                }}
+                className="hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {deciding === "declined" ? "Declining..." : "❌ Decline"}
+              </Button>
+            </>
+          )}
+          <Button
+            data-ocid="admin.toggle"
+            size="sm"
+            variant="outline"
+            onClick={() => setExpanded(!expanded)}
+            style={{
+              borderColor: "oklch(0.87 0.19 95 / 0.3)",
+              color: "oklch(0.87 0.19 95)",
+              background: "oklch(0.87 0.19 95 / 0.08)",
+              fontWeight: 700,
+              fontSize: "0.75rem",
+            }}
+            className="hover:opacity-90 transition-opacity"
+          >
+            {expanded ? "▲ Collapse" : "▼ View All 40"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Expanded: all 40 questions */}
+      {expanded && (
+        <div
+          className="border-t"
+          style={{ borderColor: "oklch(0.87 0.19 95 / 0.15)" }}
+        >
+          <div className="p-4 sm:p-6 space-y-6">
+            {SECTIONS_CONFIG.map((section) => (
+              <div key={section.title}>
+                <h4
+                  className="text-sm font-black mb-3 tracking-wide uppercase"
+                  style={{ color: "oklch(0.87 0.19 95)" }}
+                >
+                  {section.title}
+                </h4>
+                <div className="space-y-2">
+                  {section.questions.map((q) => {
+                    const answer = answersMap[q.id] || "—";
+                    return (
+                      <div
+                        key={q.id}
+                        className="rounded-lg p-3"
+                        style={{
+                          background: "oklch(0.20 0.08 290)",
+                          border: "1px solid oklch(0.87 0.19 95 / 0.12)",
+                        }}
+                      >
+                        <div
+                          className="text-xs font-bold mb-1"
+                          style={{ color: "oklch(0.70 0.08 290)" }}
+                        >
+                          Q{q.number}: {q.label}
+                        </div>
+                        <div
+                          className="text-sm leading-relaxed"
+                          style={{ color: "oklch(0.92 0.02 290)" }}
+                        >
+                          {answer}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminPage() {
+  const { actor, isFetching: actorLoading } = useActor();
+  const qc = useQueryClient();
+
+  const {
+    data: applications = [],
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery<ApplicationRecord[]>({
+    queryKey: ["applications"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const apps = await actor.listApplications();
+      return [...apps].sort((a, b) =>
+        b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0,
+      );
+    },
+    enabled: !!actor && !actorLoading,
+  });
+
+  const decisionMutation = useMutation({
+    mutationFn: async ({
+      id,
+      decision,
+      app,
+    }: {
+      id: bigint;
+      decision: "accepted" | "declined";
+      app: ApplicationRecord;
+    }) => {
+      if (!actor) throw new Error("No actor available");
+      await Promise.all([
+        actor.updateStatus(id, decision),
+        sendAdminDecision(decision, app.applicantName, app.discordUsername, id),
+      ]);
+    },
+    onSuccess: (_data, variables) => {
+      qc.setQueryData<ApplicationRecord[]>(["applications"], (prev) =>
+        prev
+          ? prev.map((a) =>
+              a.id === variables.id ? { ...a, status: variables.decision } : a,
+            )
+          : [],
+      );
+    },
+    onError: (err) => {
+      console.error("Decision error:", err);
+      alert("Failed to update status. Please try again.");
+    },
+  });
+
+  const handleDecision = (id: bigint, decision: "accepted" | "declined") => {
+    const app = applications.find((a) => a.id === id);
+    if (!app) return Promise.resolve();
+    return decisionMutation.mutateAsync({ id, decision, app });
+  };
+
+  const loading = isLoading || actorLoading;
+  const error = isError
+    ? "Failed to load applications. Please try again."
+    : null;
+  const refreshing = isFetching && !isLoading;
+
+  const pendingCount = applications.filter(
+    (a) => a.status.toLowerCase() === "pending",
+  ).length;
+  const acceptedCount = applications.filter(
+    (a) => a.status.toLowerCase() === "accepted",
+  ).length;
+  const declinedCount = applications.filter(
+    (a) => a.status.toLowerCase() === "declined",
+  ).length;
+
+  return (
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      {/* ─── Admin Navbar ─────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <span className="text-lg font-black text-primary tracking-tight text-glow-yellow">
+            TheRagebaiter SMP
+          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs font-bold px-3 py-1.5 rounded-full"
+              style={{
+                color: "oklch(0.87 0.19 95)",
+                background: "oklch(0.87 0.19 95 / 0.12)",
+                border: "1px solid oklch(0.87 0.19 95 / 0.3)",
+              }}
+            >
+              🔐 Admin Panel
+            </span>
+          </div>
+        </div>
+      </nav>
+
+      <main className="py-10 sm:py-16 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          {/* Page header */}
+          <div className="mb-10">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-2">
+              Application{" "}
+              <span className="text-primary text-glow-yellow">Reviews</span>
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Review all submitted applications and accept or decline
+              candidates.
+            </p>
+          </div>
+
+          {/* Stats row */}
+          {!loading && applications.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              {[
+                {
+                  label: "Total",
+                  value: applications.length,
+                  color: "oklch(0.70 0.08 290)",
+                },
+                {
+                  label: "Pending",
+                  value: pendingCount,
+                  color: "oklch(0.87 0.19 95)",
+                },
+                {
+                  label: "Accepted",
+                  value: acceptedCount,
+                  color: "oklch(0.78 0.19 145)",
+                },
+                {
+                  label: "Declined",
+                  value: declinedCount,
+                  color: "oklch(0.70 0.22 25)",
+                },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-xl p-4 text-center"
+                  style={{
+                    background: "oklch(0.17 0.07 290)",
+                    border: "1px solid oklch(0.87 0.19 95 / 0.12)",
+                  }}
+                >
+                  <div
+                    className="text-3xl font-black"
+                    style={{ color: stat.color }}
+                  >
+                    {stat.value}
+                  </div>
+                  <div className="text-xs font-semibold text-muted-foreground mt-0.5">
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Refresh button */}
+          <div className="flex justify-end mb-5">
+            <Button
+              data-ocid="admin.secondary_button"
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={refreshing || loading}
+              style={{
+                borderColor: "oklch(0.87 0.19 95 / 0.3)",
+                color: "oklch(0.87 0.19 95)",
+              }}
+              className="text-xs font-bold hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              {refreshing ? "⟳ Refreshing..." : "⟳ Refresh"}
+            </Button>
+          </div>
+
+          {/* Loading state */}
+          {loading && (
+            <div data-ocid="admin.loading_state" className="text-center py-20">
+              <div
+                className="inline-flex items-center gap-3 text-sm font-semibold"
+                style={{ color: "oklch(0.87 0.19 95)" }}
+              >
+                <svg
+                  className="animate-spin w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  />
+                </svg>
+                Loading applications...
+              </div>
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && (
+            <div
+              data-ocid="admin.error_state"
+              className="rounded-xl p-5 text-center mb-6"
+              style={{
+                background: "oklch(0.25 0.08 20 / 0.4)",
+                border: "1px solid oklch(0.65 0.2 20 / 0.5)",
+                color: "oklch(0.85 0.1 20)",
+              }}
+            >
+              <p className="text-sm font-semibold">{error}</p>
+              <Button
+                size="sm"
+                onClick={() => refetch()}
+                className="mt-3 text-xs"
+                style={{ background: "oklch(0.55 0.22 25)", color: "white" }}
+              >
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && !error && applications.length === 0 && (
+            <div
+              data-ocid="admin.empty_state"
+              className="text-center py-20 rounded-xl"
+              style={{
+                background: "oklch(0.17 0.07 290)",
+                border: "1px solid oklch(0.87 0.19 95 / 0.12)",
+              }}
+            >
+              <div className="text-5xl mb-4">📭</div>
+              <p
+                className="font-black text-lg mb-2"
+                style={{ color: "oklch(0.87 0.19 95)" }}
+              >
+                No Applications Yet
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Applications will appear here once players submit the form.
+              </p>
+            </div>
+          )}
+
+          {/* Applications list */}
+          {!loading && !error && applications.length > 0 && (
+            <div data-ocid="admin.list" className="space-y-4">
+              {applications.map((app, i) => (
+                <ApplicationCard
+                  key={app.id.toString()}
+                  app={app}
+                  index={i + 1}
+                  onDecision={handleDecision}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* ─── Admin Footer ─────────────────────────────────────────────────── */}
+      <footer className="border-t border-border/50 bg-card/30 mt-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-center">
+          <p className="text-xs text-muted-foreground/50">
+            © {new Date().getFullYear()} TheRagebaiter SMP. Admin panel —
+            restricted access.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
 // ─── Apply Page ────────────────────────────────────────────────────────────────
 
 function ApplyPage({ onBack }: { onBack: () => void }) {
+  const { actor } = useActor();
   const [formData, setFormData] = useState<FormData>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -567,18 +1157,33 @@ function ApplyPage({ onBack }: { onBack: () => void }) {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  const allFormQuestions = [
-    ...personalInfoQuestions,
-    ...gameplayQuestions,
-    ...communityQuestions,
-    ...rageBaitQuestions,
-  ];
-
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await sendToDiscord(formData, allFormQuestions);
+      const applicantName = formData.q1?.trim() || "Unknown";
+      const discordUsername = formData.q8?.trim() || "Unknown";
+      const rawAnswers: Array<[string, string]> = ALL_QUESTIONS.map((q) => [
+        q.id,
+        formData[q.id] ?? "",
+      ]);
+
+      // Submit to backend first (don't block Discord on failure)
+      if (actor) {
+        try {
+          await actor.submitApplication(
+            applicantName,
+            discordUsername,
+            rawAnswers,
+          );
+        } catch (backendErr) {
+          console.error("Backend submitApplication failed:", backendErr);
+        }
+      }
+
+      // Always send to Discord
+      await sendToDiscord(formData, ALL_QUESTIONS);
+
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -594,6 +1199,12 @@ function ApplyPage({ onBack }: { onBack: () => void }) {
     onBack();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Progress bar
+  const totalAnswered = ALL_QUESTIONS.filter(
+    (q) => (formData[q.id] ?? "").trim() !== "",
+  ).length;
+  const progressPct = Math.round((totalAnswered / ALL_QUESTIONS.length) * 100);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -627,6 +1238,18 @@ function ApplyPage({ onBack }: { onBack: () => void }) {
 
           <div className="w-28" />
         </div>
+        {/* Progress bar */}
+        <div className="h-1 bg-border/40">
+          <div
+            className="h-full transition-all duration-500"
+            style={{
+              width: `${progressPct}%`,
+              background:
+                "linear-gradient(to right, oklch(0.87 0.19 95 / 0.7), oklch(0.92 0.22 100))",
+              boxShadow: "0 0 8px oklch(0.87 0.19 95 / 0.5)",
+            }}
+          />
+        </div>
       </nav>
 
       {/* ─── Application Form ─────────────────────────────────────────────── */}
@@ -659,6 +1282,10 @@ function ApplyPage({ onBack }: { onBack: () => void }) {
             <p className="text-muted-foreground text-base max-w-md mx-auto">
               40 questions. No shortcuts. Prove your worth — or go back to
               creative mode.
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-2">
+              {totalAnswered} / {ALL_QUESTIONS.length} questions answered (
+              {progressPct}%)
             </p>
           </div>
 
@@ -1230,7 +1857,6 @@ function LandingPage({ onApply }: { onApply: () => void }) {
 
       {/* ─── Chapter Break Divider ───────────────────────────────────────────── */}
       <div className="relative py-12 px-4 sm:px-6">
-        {/* Thick gradient bar with yellow glow */}
         <div
           className="h-[3px] w-full mb-8"
           style={{
@@ -1241,7 +1867,6 @@ function LandingPage({ onApply }: { onApply: () => void }) {
           }}
         />
 
-        {/* Centered "SERVER RULES" badge with horizontal rules */}
         <div className="flex items-center gap-4 max-w-2xl mx-auto">
           <div
             className="flex-1 h-px"
@@ -1282,7 +1907,6 @@ function LandingPage({ onApply }: { onApply: () => void }) {
             "linear-gradient(to bottom, oklch(0.15 0.08 288 / 0.6) 0%, oklch(0.13 0.06 290 / 0) 100%)",
         }}
       >
-        {/* Right edge accent for the rules zone */}
         <div
           className="absolute right-0 top-0 bottom-0 w-1 hidden lg:block"
           style={{
@@ -1292,7 +1916,6 @@ function LandingPage({ onApply }: { onApply: () => void }) {
         />
         <div className="max-w-4xl mx-auto">
           <div className="flex items-start gap-4 mb-12">
-            {/* Bold left-side accent bar */}
             <div
               className="w-1 rounded-full self-stretch shrink-0 hidden sm:block"
               style={{
@@ -1415,7 +2038,25 @@ function LandingPage({ onApply }: { onApply: () => void }) {
 // ─── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [page, setPage] = useState<Page>("landing");
+  const [page, setPage] = useState<Page>(() => {
+    return window.location.hash === "#admin" ? "admin" : "landing";
+  });
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === "#admin") {
+        setPage("admin");
+      } else if (page === "admin") {
+        setPage("landing");
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [page]);
+
+  if (page === "admin") {
+    return <AdminPage />;
+  }
 
   if (page === "apply") {
     return <ApplyPage onBack={() => setPage("landing")} />;
