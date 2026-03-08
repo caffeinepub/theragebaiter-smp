@@ -925,17 +925,6 @@ function ApplyPage({ onBack }: { onBack: () => void }) {
           <p className="text-xs text-muted-foreground/50">
             © {new Date().getFullYear()} TheRagebaiter SMP. All rights reserved.
           </p>
-          <p className="text-xs text-muted-foreground/50">
-            Built with love using{" "}
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary/60 hover:text-primary transition-colors"
-            >
-              caffeine.ai
-            </a>
-          </p>
         </div>
       </footer>
     </div>
@@ -1417,19 +1406,7 @@ function LandingPage({ onApply }: { onApply: () => void }) {
           </div>
         </div>
 
-        <div className="border-t border-border/30 py-3 text-center">
-          <p className="text-xs text-muted-foreground/50">
-            Built with love using{" "}
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary/60 hover:text-primary transition-colors"
-            >
-              caffeine.ai
-            </a>
-          </p>
-        </div>
+        <div className="border-t border-border/30 py-3 text-center" />
       </footer>
     </div>
   );
