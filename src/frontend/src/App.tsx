@@ -20,6 +20,51 @@ import { useState } from "react";
 type FormData = Record<string, string>;
 type Page = "landing" | "apply";
 
+// ─── Discord Webhook ───────────────────────────────────────────────────────────
+
+const DISCORD_WEBHOOK_URL =
+  "https://discord.com/api/webhooks/1480303611639758870/6I7NAtgAiz6WKunYXk48KJ1p8g_49UEBbjB0v0kncR3G0zbttkJRdgTylUmZW1v-fXI5";
+
+async function sendToDiscord(
+  formData: FormData,
+  questions: { id: string; number: number; label: string }[],
+): Promise<void> {
+  const sections = [
+    { title: "📋 Personal Info (Q1–10)", range: [1, 10] },
+    { title: "⚔️ Gameplay Style (Q11–20)", range: [11, 20] },
+    { title: "👥 Community & Rules (Q21–30)", range: [21, 30] },
+    { title: "🔥 Ragebait & Chaos (Q31–40)", range: [31, 40] },
+  ];
+
+  const embeds = sections.map((section) => {
+    const sectionQs = questions.filter(
+      (q) => q.number >= section.range[0] && q.number <= section.range[1],
+    );
+    const fields = sectionQs.map((q) => ({
+      name: `Q${q.number}: ${q.label}`,
+      value: formData[q.id]?.trim() || "_No answer provided_",
+      inline: false,
+    }));
+    return {
+      title: section.title,
+      color: 0xf5c518,
+      fields,
+    };
+  });
+
+  const username = formData.q1?.trim() || "Unknown Applicant";
+
+  await fetch(DISCORD_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: "TheRagebaiter SMP",
+      content: `**New Application from ${username}** 🎮`,
+      embeds: embeds.slice(0, 4),
+    }),
+  });
+}
+
 // ─── Form Questions Definition ────────────────────────────────────────────────
 
 type QuestionType = "input" | "textarea" | "select";
@@ -515,14 +560,34 @@ function QuestionField({
 function ApplyPage({ onBack }: { onBack: () => void }) {
   const [formData, setFormData] = useState<FormData>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const updateField = (id: string, value: string) => {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const allFormQuestions = [
+    ...personalInfoQuestions,
+    ...gameplayQuestions,
+    ...communityQuestions,
+    ...rageBaitQuestions,
+  ];
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await sendToDiscord(formData, allFormQuestions);
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      setSubmitError(
+        "Failed to send your application. Please check your connection and try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleBack = () => {
@@ -788,22 +853,65 @@ function ApplyPage({ onBack }: { onBack: () => void }) {
                 </div>
 
                 {/* ── Submit ── */}
-                <div className="pt-4 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <Button
-                    onClick={handleBack}
-                    data-ocid="form.secondary_button"
-                    variant="outline"
-                    className="border-border text-muted-foreground hover:text-primary hover:border-primary/50 order-2 sm:order-1"
-                  >
-                    ← Back to Home
-                  </Button>
-                  <Button
-                    data-ocid="form.submit_button"
-                    onClick={handleSubmit}
-                    className="bg-primary text-primary-foreground font-black px-10 py-6 text-base glow-yellow hover:bg-accent hover:scale-105 transition-all duration-300 order-1 sm:order-2"
-                  >
-                    🎮 Submit Application
-                  </Button>
+                <div className="pt-4 border-t border-border/50 space-y-4">
+                  {submitError && (
+                    <div
+                      data-ocid="form.error_state"
+                      className="text-sm font-semibold text-center rounded-lg px-4 py-3"
+                      style={{
+                        background: "oklch(0.25 0.08 20 / 0.4)",
+                        border: "1px solid oklch(0.65 0.2 20 / 0.5)",
+                        color: "oklch(0.85 0.1 20)",
+                      }}
+                    >
+                      {submitError}
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <Button
+                      onClick={handleBack}
+                      data-ocid="form.secondary_button"
+                      variant="outline"
+                      disabled={submitting}
+                      className="border-border text-muted-foreground hover:text-primary hover:border-primary/50 order-2 sm:order-1"
+                    >
+                      ← Back to Home
+                    </Button>
+                    <Button
+                      data-ocid="form.submit_button"
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="bg-primary text-primary-foreground font-black px-10 py-6 text-base glow-yellow hover:bg-accent hover:scale-105 transition-all duration-300 order-1 sm:order-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+                    >
+                      {submitting ? (
+                        <span className="flex items-center gap-2">
+                          <svg
+                            className="animate-spin w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8H4z"
+                            />
+                          </svg>
+                          Sending...
+                        </span>
+                      ) : (
+                        "🎮 Submit Application"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
